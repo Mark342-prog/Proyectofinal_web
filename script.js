@@ -7,7 +7,7 @@ input.addEventListener("keydown", function (e) {
   if (e.key === "Enter") {
     const command = input.value.trim().toLowerCase();
     if (!command) return;
-    
+
     const userLine = document.createElement("pre");
     userLine.className = "line";
     userLine.textContent = `➜ ${command}`;
@@ -51,8 +51,8 @@ function handleCommand(command) {
   terminal.appendChild(response);
 }
 
-// Nota:
-//En cuayo cualquier caso carezco de noción de si el "dealer" sabe que va a sacar, la logíca detras de esto es extraña
+// ================== BLACKJACK ======================
+
 function startBlackjack() {
   blackjackGame = {
     deck: shuffleDeck(),
@@ -66,8 +66,10 @@ function startBlackjack() {
   blackjackGame.dealer.push(drawCard());
 
   printLine("🎴 Inicias una partida de Blackjack!");
-  printLine("Tus cartas: " + formatHand(blackjackGame.player));
-  printLine("Carta del dealer: " + formatHand(blackjackGame.dealer));
+  printLine("Tus cartas:");
+  printLine(renderAsciiHand(blackjackGame.player));
+  printLine("Carta del dealer:");
+  printLine(renderAsciiHand(blackjackGame.dealer));
   printLine("Escribe 'hit' para pedir carta o 'stand' para plantarte.");
 }
 
@@ -77,7 +79,8 @@ function handleBlackjackInput(command) {
   if (command === "hit") {
     blackjackGame.player.push(drawCard());
     printLine("Pediste una carta.");
-    printLine("Tus cartas: " + formatHand(blackjackGame.player));
+    printLine("Tus cartas:");
+    printLine(renderAsciiHand(blackjackGame.player));
 
     if (getHandValue(blackjackGame.player) > 21) {
       printLine("💥 Te pasaste. Pierdes.");
@@ -93,7 +96,8 @@ function handleBlackjackInput(command) {
     const playerScore = getHandValue(blackjackGame.player);
     const dealerScore = getHandValue(blackjackGame.dealer);
 
-    printLine("Cartas del dealer: " + formatHand(blackjackGame.dealer));
+    printLine("Cartas del dealer:");
+    printLine(renderAsciiHand(blackjackGame.dealer));
     printLine(`Tu puntaje: ${playerScore} | Dealer: ${dealerScore}`);
 
     if (dealerScore > 21 || playerScore > dealerScore) {
@@ -110,6 +114,8 @@ function handleBlackjackInput(command) {
     printLine("Comando no válido en Blackjack. Usa 'hit' o 'stand'.");
   }
 }
+
+// --------------------------------------------------------------------------------------------
 
 function printLine(text) {
   const line = document.createElement("pre");
@@ -136,23 +142,6 @@ function shuffleDeck() {
 function drawCard() {
   return blackjackGame.deck.pop();
 }
-//Este mepeado funciona (no cambiar aun si no funciona)
-function renderAsciiHand(hand) {
-  const lines = ['', '', '', '', ''];
-  for (let card of hand) {
-    const rank = card.rank.padEnd(2, ' ');
-    const rankRight = card.rank.padStart(2, ' ');
-    const suit = card.suit;
-
-    lines[0] += '┌───────┐ ';
-    lines[1] += `│${rank}     │ `;
-    lines[2] += `│   ${suit}   │ `;
-    lines[3] += `│     ${rankRight}│ `;
-    lines[4] += '└───────┘ ';
-  }
-
-  return lines.join('\n');
-}
 
 function getHandValue(hand) {
   let value = 0;
@@ -177,3 +166,19 @@ function getHandValue(hand) {
   return value;
 }
 
+function renderAsciiHand(hand) {
+  const lines = ['', '', '', '', ''];
+  for (let card of hand) {
+    const rank = card.rank.padEnd(2, ' ');
+    const rankRight = card.rank.padStart(2, ' ');
+    const suit = card.suit;
+
+    lines[0] += '┌───────┐ ';
+    lines[1] += `│${rank}     │ `;
+    lines[2] += `│   ${suit}   │ `;
+    lines[3] += `│     ${rankRight}│ `;
+    lines[4] += '└───────┘ ';
+  }
+
+  return lines.join('\n');
+}
