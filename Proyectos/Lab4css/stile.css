@@ -1,0 +1,52 @@
+*,
+* :before, 
+* :after{
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+body{
+    background-color: #A1662F; 
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      #8B572A 0px, 
+      #8B572A 4px, 
+      #A1662F 4px, 
+      #A1662F 50px, 
+      #8B572A 50px, 
+      #8B572A 54px 
+    );
+}
+.coin{ 
+    height: 300px;
+    width: 300px;
+   
+    background-color: #FFD700; 
+  background-image: 
+    linear-gradient(45deg, #DAA520 20%, #FFD700 40%, #FFFACD 50%, #FFD700 60%, #DAA520 80%);
+  background-size: 100% 100%;
+
+
+    position: absolute;
+    margin: auto;
+    right: 0;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 50%;
+    filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.1));
+}
+.coin:before{
+    content: "";
+    position: absolute;
+    
+    
+    height: 200px;
+    width: 200px;
+    background-color: #010008;
+    border-radius: 50%;
+    clip-path: polygon(81% 19%, 64% 17%, 64% 4%, 49% 4%, 48% 16%, 35% 18%, 27% 22%, 20% 30%, 17% 45%, 18% 53%, 21% 76%, 31% 84%, 49% 86%, 48% 92%, 61% 93%, 62% 84%, 81% 84%, 78% 63%, 48% 63%, 40% 57%, 41% 45%, 46% 38%, 62% 38%, 73% 38%, 80% 39%);
+    top: 50px;
+    right: 50px;
+}

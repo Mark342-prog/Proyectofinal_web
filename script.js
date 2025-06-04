@@ -3,6 +3,13 @@ const terminal = document.getElementById("terminal");
 
 let blackjackGame = null;
 
+const projectList = [
+  { name: "Historia de Abadon", path: "proyectos/Lab3/index.html" },
+  { name: "Dibujo one Div", path: "proyectos/Lab4css/index.html" },
+  { name: "Chat en tiempo real", path: "proyectos/Lab5/" },
+  { name: "Juego de memoria", path: "proyectos/Lab8/index.html" }
+];
+
 input.addEventListener("keydown", function (e) {
   if (e.key === "Enter") {
     const command = input.value.trim().toLowerCase();
@@ -25,34 +32,34 @@ input.addEventListener("keydown", function (e) {
 });
 
 function handleCommand(command) {
-  const response = document.createElement("pre");
-  response.className = "line";
-
   switch (command) {
     case "help":
-      response.textContent = "Comandos disponibles: about, projects, clear, blackjack";
+      printLine("Comandos disponibles: about, projects, clear, blackjack");
       break;
     case "about":
-      response.textContent = "Soy Mark Pérez, desarrollador full stack especializado en React, Node.js y MongoDB.";
+      printLine("Soy Mark Pérez, desarrollador full stack especializado en React, Node.js y MongoDB.");
       break;
     case "projects":
-      response.textContent = "- Calculadora JS\n- Juego React\n- ERP Odoo";
+      printLine("📁 Proyectos disponibles:");
+      for (const proj of projectList) {
+        const line = document.createElement("pre");
+        line.className = "line";
+        line.innerHTML = `📂 <a href="${proj.path}" target="_blank" class="proj-link">${proj.name}</a>`;
+        terminal.appendChild(line);
+      }
       break;
     case "clear":
       terminal.innerHTML = "";
-      return;
+      break;
     case "blackjack":
       startBlackjack();
-      return;
+      break;
     default:
-      response.textContent = `Comando '${command}' no reconocido. Usa 'help'.`;
+      printLine(`Comando '${command}' no reconocido. Usa 'help'.`);
   }
-
-  terminal.appendChild(response);
 }
 
-// ================== BLACKJACK ======================
-
+// ========== Blackjack ==========
 function startBlackjack() {
   blackjackGame = {
     deck: shuffleDeck(),
@@ -84,7 +91,6 @@ function handleBlackjackInput(command) {
 
     if (getHandValue(blackjackGame.player) > 21) {
       printLine("💥 Te pasaste. Pierdes.");
-      blackjackGame.done = true;
       blackjackGame = null;
     }
   } else if (command === "stand") {
@@ -108,15 +114,13 @@ function handleBlackjackInput(command) {
       printLine("😞 Perdiste.");
     }
 
-    blackjackGame.done = true;
     blackjackGame = null;
   } else {
     printLine("Comando no válido en Blackjack. Usa 'hit' o 'stand'.");
   }
 }
 
-// --------------------------------------------------------------------------------------------
-
+// ========== Utilidades ==========
 function printLine(text) {
   const line = document.createElement("pre");
   line.className = "line";

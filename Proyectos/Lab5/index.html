@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+<script type="application/javascript">
+const API_URL = 'https://chat.devng.online/chats';
+const POLL_INTERVAL = 5000;
+const MAX_MESSAGE_LENGTH = 140;
+const MAX_IMAGE_SIZE = 1 * 1024 * 1024;
+
+class ChatApp {
+  constructor() {
+    this.messagesShown = [];
+    this.lastMessageId = null;
+    this.pollingActive = true;
+    this.isFetching = false;
+    this.pollTimeout = null;
+    this.autoScrollEnabled = true;
+    this.currentUser = localStorage.getItem('user') || null;
+    
+    this.init();
+  }
+
+  init() {
+    this.addGlobalStyles();
+    this.loadFontAwesome();
+    
+    if (this.currentUser) {
+      this.showChat();
+    } else {
+      this.showLogin();
+    }
+    
+    this.setupVisibilityHandler();
+  }
+
+  addGlobalStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        font-family: 'Courier New', monospace;
+        background-color: #000000;
+        color: #00FF00;
+      }
+      
+      @keyframes fadeSlideIn {
+        0%   { opacity: 0; transform: translateY(-20px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      
+      .errorMessage {
+        text-align: center;
+        font-size: 18px;
+        color: #FF0000;
+        animation: blink 1s infinite;
+        margin: 20px;
+      }
+      
+      button:hover {
+        transform: scale(1.05);
+        transition: transform 0.2s;
+      }
+      
+      input, textarea, button {
+        background-color: #002200;
+        color: #00FF00;
+        border: 1px solid #00FF00;
+        padding: 8px;
+        border-radius: 0;
+      }
+      
+      .ascii-art {
+        white-space: pre;
+        font-size: 8px;
+        text-align: center;
+        margin: 10px 0;
+        line-height: 1.2;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  loadFontAwesome() {
+    const faLink = document.createElement('link');
+    faLink.rel = 'stylesheet';
+    faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css';
+    document.head.appendChild(faLink);
+  }
+
+  startPolling() {
+    const poll = async () => {
+      if (!this.pollingActive || this.isFetching) return;
+
+      try {
+        this.isFetching = true;
+        await this.fetchMessages();
+      } catch (error) {
+        console.error('Polling error:', error);
+      } finally {
+        this.isFetching = false;
+        this.pollTimeout = setTimeout(poll, POLL_INTERVAL);
+      }
+    };
+
+    poll();
+  }
+
+  pausePolling() {
+    clearTimeout(this.pollTimeout);
+    this.pollingActive = false;
+  }
+
+  resumePolling() {
+    if (!this.pollingActive) {
+      this.pollingActive = true;
+      this.startPolling();
+    }
+  }
+
+  async fetchMessages() {
+    try {
+      const response = await fetch(`${API_URL}?_t=${Date.now()}`);
+      if (!response.ok) throw new Error('Error fetching messages');
+      
+      const messages = await response.json();
+      this.processMessages(messages.reverse());
+    } catch (error) {
+      this.showErrorMessage('Error de conexión - Reintentando...');
+      throw error;
+    }
+  }
+
+  processMessages(messages) {
+    const newMessages = messages.filter(msg => 
+      !this.messagesShown.includes(msg.id) && 
+      (this.lastMessageId === null || msg.id > this.lastMessageId)
+    );
+
+    if (newMessages.length > 0) {
+      this.lastMessageId = Math.max(...newMessages.map(msg => msg.id));
+      this.renderMessages(newMessages);
+    }
+  }
+
+  renderMessages(messages) {
+    const fragment = document.createDocumentFragment();
+    
+    messages.forEach(msg => {
+      const li = this.createMessageElement(msg);
+      fragment.appendChild(li);
+      this.messagesShown.push(msg.id);
+    });
+
+    this.messagesList.appendChild(fragment);
+    this.handleScrollPosition();
+  }
+
+  createMessageElement({ id, username, message }) {
+    const li = document.createElement('li');
+    li.style.cssText = `
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #00FF00;
+      background-color: #001100;
+      color: #00FF00;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    `;
+
+    const safeUsername = this.sanitize(username);
+    const safeMessage = this.sanitize(message);
+
+    if (this.isImageMessage(safeMessage)) {
+      this.createImageMessage(li, safeUsername, safeMessage);
+    } else if (this.isWebURL(safeMessage)) {
+      this.createWebPreview(li, safeUsername, safeMessage);
+    } else {
+      li.innerHTML = `<strong>${safeUsername}:</strong> ${safeMessage}`;
+    }
+
+    requestAnimationFrame(() => {
+      li.style.opacity = '1';
+      li.style.transform = 'translateY(0)';
+    });
+
+    return li;
+  }
+
+  showLogin() {
+    const mainContainer = document.createElement('div');
+    mainContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      background-color: #000000;
+    `;
+    document.body.appendChild(mainContainer);
+
+    const loginContainer = document.createElement('div');
+    loginContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 350px;
+      background-color: #001100;
+      border: 2px solid #00FF00;
+      padding: 30px;
+    `;
+
+    const loginTitle = document.createElement('h1');
+    loginTitle.textContent = 'Acceso al Sistema';
+    loginTitle.style.cssText = `
+      color: #00FF00;
+      margin-bottom: 20px;
+      text-align: center;
+    `;
+    loginContainer.appendChild(loginTitle);
+
+    const userInput = document.createElement('textarea');
+    userInput.style.cssText = `
+      background-color: #000000;
+      color: #00FF00;
+      border: 1px solid #00FF00;
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 10px;
+    `;
+    userInput.setAttribute('placeholder', 'Identificación');
+    loginContainer.appendChild(userInput);
+
+    const loginButton = document.createElement('button');
+    loginButton.textContent = 'Conectar';
+    loginButton.style.cssText = `
+      background-color: #003300;
+      color: #00FF00;
+      border: 1px solid #00FF00;
+      padding: 10px 25px;
+      cursor: pointer;
+      font-size: 16px;
+    `;
+
+    loginButton.addEventListener('click', () => {
+      const nombreUsuario = userInput.value.trim();
+      if (nombreUsuario) {
+        localStorage.setItem('user', nombreUsuario);
+        mainContainer.remove();
+        this.currentUser = nombreUsuario;
+        this.showChat();
+      }
+    });
+
+    loginContainer.appendChild(loginButton);
+    mainContainer.appendChild(loginContainer);
+  }
+
+  showChat() {
+    const mainContainer = document.createElement('div');
+    mainContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      background-color: #000000;
+    `;
+    document.body.appendChild(mainContainer);
+
+    const chatContainer = document.createElement('div');
+    chatContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      width: 90%;
+      max-width: 90%;
+      height: 90vh;
+      background-color: #001100;
+      border: 2px solid #00FF00;
+    `;
+    mainContainer.appendChild(chatContainer);
+
+    const asciiArt = document.createElement('div');
+    asciiArt.className = 'ascii-art';
+    asciiArt.textContent = `
+$$$$$$$\\  $$\\                                                   $$\\       $$\\           
+$$  __$$\\ \\__|                                                  \\__|      $$ |          
+$$ |  $$ |$$\\  $$$$$$\\  $$$$$$$\\ $$\\    $$\\  $$$$$$\\  $$$$$$$\\  $$\\  $$$$$$$ | $$$$$$\\  
+$$$$$$$\\ |$$ |$$  __$$\\ $$  __$$\\\\$$\\  $$  |$$  __$$\\ $$  __$$\\ $$ |$$  __$$ |$$  __$$\\ 
+$$  __$$\\ $$ |$$$$$$$$ |$$ |  $$ |\\$$\\$$  / $$$$$$$$ |$$ |  $$ |$$ |$$ /  $$ |$$ /  $$ |
+$$ |  $$ |$$ |$$   ____|$$ |  $$ | \\$$$  /  $$   ____|$$ |  $$ |$$ |$$ |  $$ |$$ |  $$ |
+$$$$$$$  |$$ |\\$$$$$$$\\ $$ |  $$ |  \\$  /   \\$$$$$$$\\ $$ |  $$ |$$ |\\$$$$$$$ |\\$$$$$$  |
+\\_______/ \\__| \\_______|\\__|  \\__|   \\_/     \\_______|\\__|  \\__|\\__| \\_______| \\______/ 
+    `;
+    chatContainer.appendChild(asciiArt);
+
+    const header = document.createElement('div');
+    header.style.cssText = `
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      border-bottom: 2px solid #00FF00;
+    `;
+
+    const headerUser = document.createElement('span');
+    headerUser.textContent = `Usuario: ${this.currentUser}`;
+    headerUser.style.cssText = `
+      color: #00FF00;
+      margin-left: 20px;
+    `;
+    header.appendChild(headerUser);
+
+    const changeUserButton = document.createElement('button');
+    changeUserButton.textContent = 'Cambiar ID';
+    changeUserButton.style.cssText = `
+      margin-left: auto;
+      background-color: #002200;
+      color: #00FF00;
+      border: 1px solid #00FF00;
+      padding: 5px 10px;
+      cursor: pointer;
+    `;
+
+    changeUserButton.addEventListener('click', () => {
+      localStorage.removeItem('user');
+      window.location.reload();
+    });
+
+    header.appendChild(changeUserButton);
+    chatContainer.appendChild(header);
+
+    this.messagesContainer = document.createElement('div');
+    this.messagesContainer.style.cssText = `
+      flex: 1;
+      overflow-y: auto;
+      padding: 15px;
+      background-color: #000000;
+      height: calc(100% - 150px);
+    `;
+    chatContainer.appendChild(this.messagesContainer);
+
+    this.messagesList = document.createElement('ul');
+    this.messagesList.style.cssText = `
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    `;
+    this.messagesContainer.appendChild(this.messagesList);
+
+    const sendContainer = document.createElement('div');
+    sendContainer.style.cssText = `
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      border-top: 2px solid #00FF00;
+      background-color: #001100;
+    `;
+    chatContainer.appendChild(sendContainer);
+
+    const messageInput = document.createElement('textarea');
+    messageInput.style.cssText = `
+      flex: 1;
+      background-color: #000000;
+      color: #00FF00;
+      border: 1px solid #00FF00;
+      padding: 10px;
+      margin-right: 10px;
+      resize: none;
+    `;
+    messageInput.setAttribute('placeholder', 'Mensaje...');
+    sendContainer.appendChild(messageInput);
+
+    const sendButton = document.createElement('button');
+    sendButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
+    sendButton.style.cssText = `
+      background-color: #002200;
+      color: #00FF00;
+      border: 1px solid #00FF00;
+      padding: 10px 15px;
+      cursor: pointer;
+    `;
+    sendContainer.appendChild(sendButton);
+
+    sendButton.addEventListener('click', () => this.sendMessage(messageInput));
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.sendMessage(messageInput);
+      }
+    });
+
+    this.startPolling();
+  }
+
+  async sendMessage(inputElement) {
+    const message = inputElement.value.trim();
+    if (!message) return;
+
+    try {
+      this.pausePolling();
+      
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: this.currentUser,
+          message: message
+        })
+      });
+
+      if (!response.ok) throw new Error('Error de transmisión');
+      
+      inputElement.value = '';
+      this.resumePolling();
+      
+    } catch (error) {
+      console.error('Error:', error);
+      this.showErrorMessage('Error en la conexión');
+    }
+  }
+
+  sanitize(str) {
+    const temp = document.createElement('div');
+    temp.textContent = str;
+    return temp.innerHTML;
+  }
+
+  isImageMessage(message) {
+    try {
+      const url = new URL(message);
+      return /\.(jpe?g|png|webp)$/i.test(url.pathname);
+    } catch {
+      return message.startsWith('data:image');
+    }
+  }
+
+  isWebURL(message) {
+    try {
+      new URL(message);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  setupVisibilityHandler() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.pausePolling();
+      } else {
+        this.resumePolling();
+      }
+    });
+  }
+
+  showErrorMessage(text) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'errorMessage';
+    errorDiv.textContent = text;
+    this.messagesContainer.appendChild(errorDiv);
+  }
+}
+
+new ChatApp();
+</script>
+</body>
+</html>

@@ -133,3 +133,14 @@ input[type="text"] {
   }
 }
 
+.proj-link {
+  color: #00ffcc;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.proj-link:hover {
+  color: #00ffff;
+  text-decoration: underline;
+}
+
